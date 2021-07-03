@@ -1,10 +1,11 @@
-package com.deepak.pubsub;
+package com.deepak.pubsub.util;
 
+import com.deepak.pubsub.external.IPublisher;
 import com.deepak.pubsub.exception.ChannelDoesNotExistsException;
-import com.deepak.pubsub.exception.PublisherException;
+import com.deepak.pubsub.manager.Broker;
 import org.json.JSONObject;
 
-public abstract class AbstractPublisher {
+public abstract class AbstractPublisher implements IPublisher {
 	private final String channel;
 	private final Broker broker;
 
@@ -13,14 +14,17 @@ public abstract class AbstractPublisher {
 		this.broker = Broker.getInstance();
 	}
 
-	public void register() {
+	@Override
+	public void register () {
 		broker.openChannel(channel);
 	}
 
-	public void deregister() {
+	@Override
+	public void deregister () {
 		broker.closeChannel(channel);
 	}
 
+	@Override
 	public void publish (JSONObject message) throws ChannelDoesNotExistsException {
 		broker.publish(channel, message);
 	}
