@@ -1,14 +1,17 @@
-package com.deepak.pubsub;
+package com.deepak.pubsub.util;
 
 import com.deepak.pubsub.exception.ChannelDoesNotExistsException;
 import com.deepak.pubsub.exception.ChannelNotSubscribedException;
+import com.deepak.pubsub.external.ICallback;
+import com.deepak.pubsub.external.ISubscriber;
+import com.deepak.pubsub.manager.Broker;
 import org.json.JSONObject;
 
 import java.util.List;
 import java.util.Objects;
 import java.util.Random;
 
-public abstract class AbstractSubscriber {
+public abstract class AbstractSubscriber implements ISubscriber {
 	final int id;
 	final String channel;
 	private final ICallback callback;
@@ -22,9 +25,9 @@ public abstract class AbstractSubscriber {
 	 * This constructor can be used for autoscaling,
 	 * so that each consumer of one type share a common channel and pointer
 	 *
-	 * @param id
-	 * @param channel
-	 * @param callback
+	 * @param id       pass the same id for autoscaling
+	 * @param channel  channel to read on
+	 * @param callback callback to run
 	 */
 	protected AbstractSubscriber (int id, String channel, ICallback callback) {
 		this.id = id;
@@ -33,31 +36,90 @@ public abstract class AbstractSubscriber {
 		this.broker = Broker.getInstance();
 	}
 
+	@Override
 	public void register () throws ChannelDoesNotExistsException {
 		broker.registerSubscriber(this);
 	}
 
+	@Override
 	public void deregister () throws ChannelDoesNotExistsException {
 		broker.deregisterSubscriber(this);
 	}
 
+	@Override
 	public JSONObject poll () throws ChannelNotSubscribedException {
 		return broker.poll(this);
 	}
 
+	@Override
 	public List <JSONObject> poll (int count) throws ChannelNotSubscribedException {
 		return broker.poll(this, count);
 	}
 
+	@Override
 	public void pollAndExecute () {
-		JSONObject message = null;
+		JSONObject message;
 		try {
 			message = poll();
 		} catch (ChannelNotSubscribedException e) {
 			return;
 		}
-		callback.callback(message);
+		int retry = 3;
+		while ((retry--) != 0) {
+			try {
+				callback.callback(message);
+				return;
+			} catch (Throwable ignored) {
 
+			}
+		}
+		broker.markFailed(this, message);
+	}
+
+	@Override
+	public void pollFailedAndExecute () {
+		JSONObject message = broker.pollFailed(this);
+		if (message == null) {
+			return;
+		}
+		int retry = 3;
+		while ((retry--) != 0) {
+			try {
+				callback.callback(message);
+				return;
+			} catch (Throwable ignored) {
+
+			}
+		}
+		broker.markFailed(this, message);
+	}
+
+	@Override
+	public void pollAndExecute (int count) {
+		List <JSONObject> messages;
+		try {
+			messages = poll(count);
+		} catch (ChannelNotSubscribedException e) {
+			return;
+		}
+
+		for (JSONObject message : messages) {
+			int retry = 3;
+			while ((retry--) != 0) {
+				try {
+					callback.callback(message);
+					return;
+				} catch (Throwable ignored) {
+
+				}
+			}
+			broker.markFailed(this, message);
+		}
+	}
+
+	@Override
+	public String getChannel () {
+		return channel;
 	}
 
 	@Override
