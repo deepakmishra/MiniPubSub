@@ -1,4 +1,4 @@
-package com.deepak.pubsub.manager;
+package com.deepak.pubsub.implementation.queue;
 
 import com.deepak.pubsub.exception.ChannelDoesNotExistsException;
 import org.json.JSONObject;

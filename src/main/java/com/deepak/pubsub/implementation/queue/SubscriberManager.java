@@ -1,8 +1,8 @@
-package com.deepak.pubsub.manager;
+package com.deepak.pubsub.implementation.queue;
 
 import com.deepak.pubsub.exception.ChannelDoesNotExistsException;
 import com.deepak.pubsub.exception.ChannelNotSubscribedException;
-import com.deepak.pubsub.external.ISubscriber;
+import com.deepak.pubsub.contract.ISubscriber;
 import org.json.JSONObject;
 
 import java.util.*;
@@ -106,7 +106,7 @@ class SubscriberManager {
 		if (!subscriberToRetryMap.containsKey(subscriber)) {
 			return null;
 		}
-		return subscriberToRetryMap.get(subscriber).remove();
+		return subscriberToRetryMap.get(subscriber).poll();
 	}
 
 	private static class QueuePointer {

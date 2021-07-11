@@ -1,4 +1,4 @@
-package com.deepak.pubsub.external;
+package com.deepak.pubsub.contract;
 
 import com.deepak.pubsub.exception.ChannelDoesNotExistsException;
 import com.deepak.pubsub.exception.ChannelNotSubscribedException;
@@ -11,11 +11,13 @@ public interface ISubscriber {
 
 	void deregister () throws ChannelDoesNotExistsException;
 
-	JSONObject poll () throws ChannelNotSubscribedException;
+	JSONObject poll () throws ChannelNotSubscribedException, ChannelDoesNotExistsException;
 
-	List <JSONObject> poll (int count) throws ChannelNotSubscribedException;
+	List <JSONObject> poll (int count) throws ChannelNotSubscribedException, ChannelDoesNotExistsException;
 
 	void pollAndExecute ();
+
+	JSONObject pollFailed ();
 
 	void pollFailedAndExecute ();
 

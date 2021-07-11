@@ -1,4 +1,4 @@
-package com.deepak.pubsub.external;
+package com.deepak.pubsub.contract;
 
 import org.json.JSONObject;
 

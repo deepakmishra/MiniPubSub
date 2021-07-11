@@ -1,10 +1,11 @@
 package com.deepak.pubsub.util;
 
+import com.deepak.pubsub.contract.IBroker;
+import com.deepak.pubsub.contract.ICallback;
+import com.deepak.pubsub.contract.ISubscriber;
 import com.deepak.pubsub.exception.ChannelDoesNotExistsException;
 import com.deepak.pubsub.exception.ChannelNotSubscribedException;
-import com.deepak.pubsub.external.ICallback;
-import com.deepak.pubsub.external.ISubscriber;
-import com.deepak.pubsub.manager.Broker;
+import com.deepak.pubsub.implementation.array.Broker;
 import org.json.JSONObject;
 
 import java.util.List;
@@ -15,10 +16,17 @@ public abstract class AbstractSubscriber implements ISubscriber {
 	final int id;
 	final String channel;
 	private final ICallback callback;
-	private final Broker broker;
+	private final IBroker broker;
 
+	/**
+	 * This constructor can be used for autoscaling,
+	 * so that each consumer of one type share a common channel and pointer
+	 *
+	 * @param channel  channel to read on
+	 * @param callback callback to run
+	 */
 	protected AbstractSubscriber (String channel, ICallback callback) {
-		this(new Random().nextInt(), channel, callback);
+		this(new Random().nextInt(), channel, callback, Broker.getInstance());
 	}
 
 	/**
@@ -30,10 +38,35 @@ public abstract class AbstractSubscriber implements ISubscriber {
 	 * @param callback callback to run
 	 */
 	protected AbstractSubscriber (int id, String channel, ICallback callback) {
+		this(id, channel, callback, Broker.getInstance());
+	}
+
+	/**
+	 * This constructor can be used for autoscaling,
+	 * so that each consumer of one type share a common channel and pointer
+	 *
+	 * @param channel  channel to read on
+	 * @param callback callback to run
+	 * @param broker   implementation of broker
+	 */
+	protected AbstractSubscriber (String channel, ICallback callback, IBroker broker) {
+		this(new Random().nextInt(), channel, callback, broker);
+	}
+
+	/**
+	 * This constructor can be used for autoscaling,
+	 * so that each consumer of one type share a common channel and pointer
+	 *
+	 * @param id       pass the same id for autoscaling
+	 * @param channel  channel to read on
+	 * @param callback callback to run
+	 * @param broker   implementation of broker
+	 */
+	protected AbstractSubscriber (int id, String channel, ICallback callback, IBroker broker) {
 		this.id = id;
 		this.channel = channel;
 		this.callback = callback;
-		this.broker = Broker.getInstance();
+		this.broker = broker;
 	}
 
 	@Override
@@ -47,12 +80,12 @@ public abstract class AbstractSubscriber implements ISubscriber {
 	}
 
 	@Override
-	public JSONObject poll () throws ChannelNotSubscribedException {
+	public JSONObject poll () throws ChannelNotSubscribedException, ChannelDoesNotExistsException {
 		return broker.poll(this);
 	}
 
 	@Override
-	public List <JSONObject> poll (int count) throws ChannelNotSubscribedException {
+	public List <JSONObject> poll (int count) throws ChannelNotSubscribedException, ChannelDoesNotExistsException {
 		return broker.poll(this, count);
 	}
 
@@ -61,7 +94,7 @@ public abstract class AbstractSubscriber implements ISubscriber {
 		JSONObject message;
 		try {
 			message = poll();
-		} catch (ChannelNotSubscribedException e) {
+		} catch (ChannelNotSubscribedException | ChannelDoesNotExistsException e) {
 			return;
 		}
 		int retry = 3;
@@ -74,6 +107,12 @@ public abstract class AbstractSubscriber implements ISubscriber {
 			}
 		}
 		broker.markFailed(this, message);
+	}
+
+
+	@Override
+	public JSONObject pollFailed () {
+		return broker.pollFailed(this);
 	}
 
 	@Override
@@ -99,7 +138,7 @@ public abstract class AbstractSubscriber implements ISubscriber {
 		List <JSONObject> messages;
 		try {
 			messages = poll(count);
-		} catch (ChannelNotSubscribedException e) {
+		} catch (ChannelNotSubscribedException | ChannelDoesNotExistsException e) {
 			return;
 		}
 
